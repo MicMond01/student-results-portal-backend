@@ -4,7 +4,15 @@ require("express-async-errors");
 const express = require("express");
 const app = express();
 const authRouter = require("./routes/authRoutes");
-// const authenticationMiddleware = require("./middleware/authentication");
+const adminRouter = require("./routes/admin");
+const lecturerRouter = require("./routes/lecturer");
+const studentRouter = require("./routes/student");
+const authenticationMiddleware = require("./middleware/authMiddleware");
+const {
+  adminOnly,
+  lecturerOrAdmin,
+  studentOnly,
+} = require("./middleware/authorizeRoles");
 
 //extra security packages
 // const helmet = require("helmet");
@@ -32,7 +40,19 @@ app.get("/", (req, res) => {
 });
 // routes
 app.use("/api/v1/auth", authRouter);
-// app.use("/api/v1/jobs", authenticationMiddleware, jobsRouter);
+app.use("/api/v1/admin", authenticationMiddleware, adminOnly, adminRouter);
+app.use(
+  "/api/v1/lecturer",
+  authenticationMiddleware,
+  lecturerOrAdmin,
+  lecturerRouter
+);
+app.use(
+  "/api/v1/student",
+  authenticationMiddleware,
+  studentOnly,
+  studentRouter
+);
 
 app.use(notFoundMiddleware);
 app.use(errorHandlerMiddleware);
