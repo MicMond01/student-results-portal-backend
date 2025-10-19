@@ -42,6 +42,10 @@ const ResultSchema = new mongoose.Schema(
       type: String,
       enum: ["A", "B", "C", "D", "E", "F"],
     },
+    uploadedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   { timestamps: true }
 );

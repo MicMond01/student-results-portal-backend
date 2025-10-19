@@ -39,3 +39,4 @@ Thumbs.db
 # Scripts
 src/hashPasswords.js
 src/seed.js
+src/updateResultsWithUploadedBy.js

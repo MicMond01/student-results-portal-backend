@@ -13,33 +13,37 @@ const connectDB = async () => {
   }
 };
 
-const hashPasswords = async () => {
+const resetLecturerPasswords = async () => {
   await connectDB();
 
   try {
-    // Find all lecturers with plain text passwords
+    // Find all lecturers first
     const lecturers = await User.find({ role: "lecturer" });
+    console.log(`Found ${lecturers.length} lecturers`);
+
+    // Hash the password once
+    const hashedPassword = await bcrypt.hash("123456", 10);
+    console.log("Hashed password:", hashedPassword);
     
-    console.log(`Found ${lecturers.length} lecturers to update`);
+    // Update all lecturers with the properly hashed password
+    const result = await User.updateMany(
+      { role: "lecturer" },
+      { $set: { password: hashedPassword } }
+    );
 
-    for (const lecturer of lecturers) {
-      // Check if password is already hashed (bcrypt hashes start with $2a$ or $2b$)
-      if (!lecturer.password.startsWith("$2")) {
-        const hashedPassword = await bcrypt.hash(lecturer.password, 10);
-        lecturer.password = hashedPassword;
-        await lecturer.save();
-        console.log(`✅ Hashed password for ${lecturer.name}`);
-      } else {
-        console.log(`⏭️  Password already hashed for ${lecturer.name}`);
-      }
-    }
-
-    console.log("\n✅ All lecturer passwords have been hashed successfully!");
+    console.log("Update result:", result);
+    console.log(`✅ Updated ${result.matchedCount || result.n} lecturer passwords`);
+    
+    // Verify one lecturer
+    const testLecturer = await User.findOne({ role: "lecturer" });
+    console.log("\nTest lecturer password:", testLecturer.password);
+    
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error hashing passwords:", error);
+    console.error("❌ Error:", error);
     process.exit(1);
   }
 };
 
-hashPasswords();
+resetLecturerPasswords();
+
