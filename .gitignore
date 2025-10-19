@@ -1,4 +1,4 @@
 /node_modules
 .env
-./src/seed.js
-./src/harshPassword.js
+src/seed.js
+src/harshPassword.js
