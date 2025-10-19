@@ -8,27 +8,30 @@ const emailRegex =
 
 const matricRegex = /^\d{11}$/;
 
-const UserSchema = new mongoose.Schema({
-  identifier: {
-    type: String,
-    required: [true, "Input is required"],
-    unique: true,
+const UserSchema = new mongoose.Schema(
+  {
+    identifier: {
+      type: String,
+      required: [true, "Input is required"],
+      unique: true,
+    },
+    role: {
+      type: String,
+      enum: ["student", "lecturer", "admin"],
+    },
+    name: {
+      type: String,
+      required: [true, "Please provide name"],
+      minlength: 3,
+      maxlength: 50,
+    },
+    password: {
+      type: String,
+      required: [true, "Please provide a password"],
+    },
   },
-  role: {
-    type: String,
-    enum: ["student", "lecturer", "admin"],
-  },
-  name: {
-    type: String,
-    required: [true, "Please provide name"],
-    minlength: 3,
-    maxlength: 50,
-  },
-  password: {
-    type: String,
-    required: [true, "Please provide a password"],
-  },
-});
+  { timestamps: true }
+);
 
 UserSchema.pre("save", async function (next) {
   try {
