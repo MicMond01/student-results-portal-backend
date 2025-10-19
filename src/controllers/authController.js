@@ -1,3 +1,4 @@
+const { UnauthenticatedError } = require("../errors");
 const User = require("../models/User");
 const { StatusCodes } = require("http-status-codes");
 
