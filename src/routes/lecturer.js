@@ -11,12 +11,16 @@ const {
   viewOwnProfile,
   updateProfileInfo,
 } = require("../controllers/lecturer");
+const { canModifyResult } = require("../middleware/resourceAuthorization");
 
 router
   .route("/results")
   .get(getAllResultsUplodedByLecturer)
   .post(uploadResultForStudent);
-router.route("/results/:id").patch(editStudentResult).delete(deleteResult);
+router
+  .route("/results/:id")
+  .patch(canModifyResult, editStudentResult)
+  .delete(canModifyResult, deleteResult);
 router.route("/results/my-course").get(getAllResultsForMyCourses);
 router.route("/courses").get(viewCoursesAssignedToLecturer);
 router.route("/profile").get(viewOwnProfile).patch(updateProfileInfo);

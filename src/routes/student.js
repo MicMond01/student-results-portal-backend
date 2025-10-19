@@ -2,12 +2,14 @@ const express = require("express");
 const router = express.Router();
 
 const {
-  getLoggedInStudentResults,
+  getMyResults,
   getOwnProfile,
-  updateProfile,
+  updateOwnProfile,
+  getMyCourses,
 } = require("../controllers/student");
 
-router.route("/results").get(getLoggedInStudentResults);
-router.route("/profile").get(getOwnProfile).patch(updateProfile);
+router.route("/results").get(getMyResults);
+router.route("/courses").get(getMyCourses);
+router.route("/profile").get(getOwnProfile).patch(updateOwnProfile);
 
 module.exports = router;

@@ -37,6 +37,6 @@ Thumbs.db
 .idea/
 
 # Scripts
-src/hashPasswords.js
+src/Scripts
 src/seed.js
 src/updateResultsWithUploadedBy.js
