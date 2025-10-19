@@ -11,14 +11,7 @@ const {
 const getMyResults = async (req, res) => {
   const studentId = req.user.userId;
 
-  const { session, semester } = req.query;
-  console.log(session, semester);
-
-  const filter = { student: studentId };
-  if (session) filter.session = session;
-  if (semester) filter.semester = semester;
-
-  const results = await Result.find(filter)
+  const results = await Result.find({ student: studentId })
     .select("course ca exam total grade session semester")
     .populate("course", "title code creditUnit level")
     .sort({ session: -1, semester: 1 });
