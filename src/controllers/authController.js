@@ -1,4 +1,4 @@
-const { UnauthenticatedError } = require("../errors");
+const { UnauthenticatedError, BadRequestError } = require("../errors");
 const User = require("../models/User");
 const { StatusCodes } = require("http-status-codes");
 
@@ -35,12 +35,35 @@ const login = async (req, res) => {
     .json({ user: { name: user.name, role: user.role }, token });
 };
 
-const me = (req, res) => {
-  res.send("My profile Route");
+const loggedInUser = async (req, res) => {
+  try {
+    // req.user comes from your authenticationMiddleware
+    const user = await User.findById(req.user.userId).select("-password -__v");
+
+    if (!user) {
+      return res.status(StatusCodes.NOT_FOUND).json({ msg: "User not found" });
+    }
+
+    // Send only relevant user info
+    res.status(StatusCodes.OK).json({
+      user: {
+        id: user._id,
+        name: user.name,
+        identifier: user.identifier,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ msg: "Something went wrong" });
+  }
 };
 
 module.exports = {
   register,
   login,
-  me,
+  loggedInUser,
 };
