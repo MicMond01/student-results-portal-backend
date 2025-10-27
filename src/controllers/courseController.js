@@ -8,7 +8,7 @@ const addNewCourse = async (req, res) => {
   res.status(StatusCodes.CREATED).json({
     success: true,
     message: "Course created successfully",
-    course: {
+    course: { 
       id: course._id,
       title: course.title,
       code: course.code,

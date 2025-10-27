@@ -6,6 +6,12 @@ const {
   groupResultsByCourse,
   groupResultsByStudent,
 } = require("../utils/resultFormatters");
+const {
+  calculateSessionGPA,
+  calculateOverallStats,
+  calculatePassRate,
+  getAtRiskStudents,
+} = require("../utils/gradeCalculations");
 const Course = require("../models/Course");
 const User = require("../models/User");
 
@@ -40,6 +46,83 @@ const getAllResultsForMyCourses = async (req, res) => {
     totalResults: results.length,
     totalStudents: groupedResults.length,
     data: groupedResults,
+  });
+};
+
+const getMyCoursesAnalytics = async (req, res) => {
+  const lecturerId = req.user.userId;
+  const { session } = req.query; // Optional filter by session
+
+  const { results, courses } = await ResultService.getResultsForLecturerCourses(
+    lecturerId
+  );
+
+  if (courses.length === 0) {
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: "No courses assigned",
+      analytics: null,
+    });
+  }
+
+  // Filter by session if provided
+  let filteredResults = results;
+  if (session) {
+    filteredResults = results.filter((r) => r.session === session);
+  }
+
+  const groupedResults = groupResultsByStudent(filteredResults);
+  const sessionStats = calculateSessionGPA(groupedResults);
+  const overallStats = calculateOverallStats(sessionStats);
+
+  // Calculate course-specific stats
+  const courseStats = {};
+  courses.forEach((course) => {
+    const courseResults = filteredResults.filter(
+      (r) => r.course._id.toString() === course._id.toString()
+    );
+
+    if (courseResults.length > 0) {
+      const gradeDistribution = { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 };
+      courseResults.forEach((r) => {
+        gradeDistribution[r.grade]++;
+      });
+
+      const passCount = courseResults.filter((r) =>
+        ["A", "B", "C", "D", "E"].includes(r.grade)
+      ).length;
+
+      courseStats[course.code] = {
+        courseId: course._id,
+        title: course.title,
+        code: course.code,
+        totalStudents: courseResults.length,
+        passRate: ((passCount / courseResults.length) * 100).toFixed(2) + "%",
+        gradeDistribution,
+        averageScore: (
+          courseResults.reduce((sum, r) => sum + r.total, 0) /
+          courseResults.length
+        ).toFixed(2),
+      };
+    }
+  });
+
+  res.status(StatusCodes.OK).json({
+    success: true,
+    analytics: {
+      overall: {
+        ...overallStats,
+        totalCourses: courses.length,
+        passRate: calculatePassRate(filteredResults) + "%",
+      },
+      byCourse: Object.values(courseStats),
+      bySession: Object.values(sessionStats).map((s) => ({
+        session: s.session,
+        averageGPA: s.averageGPA,
+        students: s.students,
+        gradeDistribution: s.gradeDistribution,
+      })),
+    },
   });
 };
 
@@ -106,6 +189,16 @@ const editStudentResult = async (req, res) => {
   res.status(StatusCodes.OK).json({
     msg: "Result updated successfully",
     result: updatedResult,
+  });
+};
+
+const getResultWithStudentInfo = async (req, res) => {
+  const { id: resultId } = req.params;
+
+  const data = await ResultService.getResultWithStudent(resultId);
+
+  res.status(StatusCodes.OK).json({
+    ...data,
   });
 };
 
@@ -220,7 +313,9 @@ const updateProfileInfo = async (req, res) => {
 module.exports = {
   getAllResultsUplodedByLecturer,
   getAllResultsForMyCourses,
+  getMyCoursesAnalytics,
   uploadResultForStudent,
+  getResultWithStudentInfo,
   editStudentResult,
   deleteResult,
   viewCoursesAssignedToLecturer,

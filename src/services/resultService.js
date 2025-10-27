@@ -46,6 +46,32 @@ class ResultService {
     return await Result.findById(result._id).populate(RESULT_POPULATE);
   }
 
+  static async getResultWithStudent(resultId) {
+    const result = await Result.findById(resultId)
+      .populate({
+        path: "student",
+        select: "name identifier level department", // choose what you want
+      })
+      .populate({
+        path: "course",
+        select: "code title creditUnit level semester session",
+      })
+      .populate({
+        path: "uploadedBy",
+        select: "name email role",
+      });
+
+    if (!result) {
+      throw new NotFoundError("Result not found");
+    }
+
+    // Structure output as requested
+    return {
+      result,
+      student: result.student,
+    };
+  }
+
   static async deleteResult(resultId) {
     return await Result.findByIdAndDelete(resultId);
   }
