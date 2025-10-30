@@ -31,6 +31,7 @@ class ResultService {
 
   static async createResult(data) {
     const result = await Result.create(data);
+    console.log(result);
     return await Result.findById(result._id).populate(RESULT_POPULATE);
   }
 

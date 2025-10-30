@@ -141,9 +141,19 @@ const uploadResultForStudent = async (req, res) => {
     throw new BadRequestError("Please provide all required fields");
   }
 
+  const studentDoc = await User.findOne({
+    identifier: student,
+    role: "student",
+  });
+  if (!studentDoc) {
+    throw new NotFoundError("Student not found");
+  }
+
+  const studentId = studentDoc._id;
+
   // Check for duplicate
   const existingResult = await ResultService.checkDuplicateResult(
-    student,
+    studentId,
     course,
     session
   );
@@ -154,13 +164,9 @@ const uploadResultForStudent = async (req, res) => {
   }
 
   // Validate student
-  const studentDoc = await User.findOne({ _id: student, role: "student" });
-  if (!studentDoc) {
-    throw new NotFoundError("Student not found");
-  }
 
   const result = await ResultService.createResult({
-    student,
+    student: studentId,
     course,
     ca,
     exam,
@@ -231,7 +237,6 @@ const viewCoursesAssignedToLecturer = async (req, res) => {
     courses,
   });
 };
-
 const viewOwnProfile = async (req, res) => {
   const lecturerId = req.user.userId;
   const { lecturer, courses } = await LecturerService.getLecturerWithCourses(
@@ -251,11 +256,30 @@ const viewOwnProfile = async (req, res) => {
   res.status(StatusCodes.OK).json({
     success: true,
     lecturer: {
+      // Basic Info
       id: lecturer._id,
       name: lecturer.name,
       email: lecturer.identifier,
-      department: lecturer.department || "Computer Science",
       role: lecturer.role,
+
+      // Personal Information
+      profilePhoto: lecturer.profilePhoto || null,
+      gender: lecturer.gender || null,
+      dateOfBirth: lecturer.dateOfBirth || null,
+      phone: lecturer.phone || null,
+      address: lecturer.address || null,
+
+      // Academic/Professional Information
+      staffId: lecturer.staffId || null,
+      department: lecturer.department || "Computer Science",
+      faculty: lecturer.faculty || "Faculty of Science",
+      school: lecturer.school || "Lagos State University",
+      rank: lecturer.rank || "Lecturer",
+      specialization: lecturer.specialization || null,
+      yearsOfExperience: lecturer.yearsOfExperience || null,
+      officeLocation: lecturer.officeLocation || null,
+      highestDegree: lecturer.highestDegree || null,
+      institution: lecturer.institution || null,
     },
     stats,
     latestCourse: latestCourse

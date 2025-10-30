@@ -10,27 +10,116 @@ const matricRegex = /^\d{11}$/;
 
 const UserSchema = new mongoose.Schema(
   {
+    name: {
+      type: String,
+      required: [true, "Please provide name"],
+      trim: true,
+    },
     identifier: {
       type: String,
-      required: [true, "Input is required"],
+      required: [true, "Please provide identifier"],
       unique: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: [true, "Please provide password"],
     },
     role: {
       type: String,
       enum: ["student", "lecturer", "admin"],
+      required: true,
     },
-    name: {
+    department: {
       type: String,
-      required: [true, "Please provide name"],
-      minlength: 3,
-      maxlength: 50,
+      trim: true,
     },
-    password: {
+
+    // ==================== PERSONAL INFORMATION ====================
+    profilePhoto: {
       type: String,
-      required: [true, "Please provide a password"],
+      default: null,
+    },
+    gender: {
+      type: String,
+      enum: ["Male", "Female", "Other"],
+      default: null,
+    },
+    dateOfBirth: {
+      type: Date,
+      default: null,
+    },
+    phone: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    address: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    // ==================== ACADEMIC/PROFESSIONAL INFO (Lecturers) ====================
+    staffId: {
+      type: String,
+      trim: true,
+      sparse: true,
+      unique: true,
+      default: null,
+    },
+    faculty: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    school: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    rank: {
+      type: String,
+      enum: [
+        "Graduate Assistant",
+        "Assistant Lecturer",
+        "Lecturer II",
+        "Lecturer I",
+        "Senior Lecturer",
+        "Associate Professor",
+        "Professor",
+      ],
+      default: null,
+    },
+    specialization: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    yearsOfExperience: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    officeLocation: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    highestDegree: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    institution: {
+      type: String,
+      trim: true,
+      default: null,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 UserSchema.pre("save", async function (next) {
