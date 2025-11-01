@@ -5,14 +5,17 @@ const {
   getAllResultsUplodedByLecturer,
   getAllResultsForMyCourses,
   uploadResultForStudent,
-  editStudentResult,
+  editStudentResult, 
   deleteResult,
   viewCoursesAssignedToLecturer,
   getMyCoursesAnalytics,
   viewOwnProfile,
   updateProfileInfo,
   getResultWithStudentInfo,
+  updateProfilePhoto,
+  changePassword,
 } = require("../controllers/lecturer");
+
 const { canModifyResult } = require("../middleware/resourceAuthorization");
 
 router
@@ -27,6 +30,8 @@ router
 router.route("/course-results").get(getAllResultsForMyCourses);
 router.route("/courses").get(viewCoursesAssignedToLecturer);
 router.route("/profile").get(viewOwnProfile).patch(updateProfileInfo);
+router.patch("/profile/photo", updateProfilePhoto);
+router.patch("/profile/change-password", changePassword);
 router.route("/analytics").get(getMyCoursesAnalytics);
 
 module.exports = router;

@@ -28,14 +28,24 @@ class LecturerService {
     return { totalCourses, totalStudents, uniqueStudents, resultsUploaded };
   }
 
-  static async updateLecturer(lecturerId, updates) {
+  static async updateLecturer(lecturerId, updateData) {
+    // Find the lecturer
     const lecturer = await User.findById(lecturerId);
 
-    if (updates.name) lecturer.name = updates.name;
-    if (updates.department) lecturer.department = updates.department;
+    if (!lecturer) {
+      throw new NotFoundError("Lecturer not found");
+    }
 
-    await lecturer.save();
-    return lecturer;
+    const updatedLecturer = await User.findByIdAndUpdate(
+      lecturerId,
+      { $set: updateData },
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).select("-password");
+
+    return updatedLecturer;
   }
 }
 

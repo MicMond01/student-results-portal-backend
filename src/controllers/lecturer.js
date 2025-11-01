@@ -306,16 +306,38 @@ const viewOwnProfile = async (req, res) => {
 
 const updateProfileInfo = async (req, res) => {
   const lecturerId = req.user.userId;
-  const { name, department } = req.body;
+  const {
+    name,
+    phone,
+    address,
+    gender,
+    department,
+    specialization,
+    officeLocation,
+  } = req.body;
 
-  if (!name && !department) {
+  if (
+    !name &&
+    !phone &&
+    !address &&
+    !gender &&
+    !department &&
+    !specialization &&
+    !officeLocation
+  ) {
     throw new BadRequestError("Please provide at least one field to update");
   }
 
-  const lecturer = await LecturerService.updateLecturer(lecturerId, {
-    name,
-    department,
-  });
+  const updateData = {};
+  if (name) updateData.name = name;
+  if (gender) updateData.gender = gender;
+  if (phone) updateData.phone = phone;
+  if (address) updateData.address = address;
+  if (department) updateData.department = department;
+  if (specialization) updateData.specialization = specialization;
+  if (officeLocation) updateData.officeLocation = officeLocation;
+
+  const lecturer = await LecturerService.updateLecturer(lecturerId, updateData);
 
   if (!lecturer || lecturer.role !== "lecturer") {
     throw new NotFoundError("Lecturer not found");
@@ -328,9 +350,119 @@ const updateProfileInfo = async (req, res) => {
       id: lecturer._id,
       name: lecturer.name,
       email: lecturer.identifier,
-      department: lecturer.department || "Computer Science",
+      department: lecturer.department,
+      phone: lecturer.phone,
+      address: lecturer.address,
+      gender: lecturer.gender,
+      specialization: lecturer.specialization,
+      officeLocation: lecturer.officeLocation,
       role: lecturer.role,
     },
+  });
+};
+
+const updateProfilePhoto = async (req, res) => {
+  try {
+    const lecturerId = req.user.userId;
+    const { profilePhoto } = req.body;
+
+    if (!profilePhoto) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        message: "Please provide a profile photo URL",
+      });
+    }
+
+    // Enhanced URL validation
+    const urlPattern = /^https?:\/\/.+\..+$/;
+    if (!urlPattern.test(profilePhoto)) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        message: "Please provide a valid URL",
+      });
+    }
+
+    // Validate URL points to an image
+    const imageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+    const isImageUrl = imageExtensions.some((ext) =>
+      profilePhoto.toLowerCase().includes(ext)
+    );
+
+    if (!isImageUrl) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        message: "URL must point to a valid image file",
+      });
+    }
+
+    const lecturer = await LecturerService.updateLecturer(lecturerId, {
+      profilePhoto,
+    });
+
+    if (!lecturer) {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        success: false,
+        message: "Lecturer not found",
+      });
+    }
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      message: "Profile photo updated successfully",
+      profilePhoto: lecturer.profilePhoto,
+    });
+  } catch (error) {
+    console.error("Update profile photo error:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+const changePassword = async (req, res) => {
+  const lecturerId = req.user.userId;
+  const { oldPassword, newPassword, confirmPassword } = req.body;
+
+  if (!oldPassword || !newPassword || !confirmPassword) {
+    throw new BadRequestError(
+      "Please provide old password, new password, and confirm password"
+    );
+  }
+
+  if (newPassword.length < 6) {
+    throw new BadRequestError(
+      "New password must be at least 6 characters long"
+    );
+  }
+
+  if (newPassword !== confirmPassword) {
+    throw new BadRequestError("New passwords do not match");
+  }
+
+  if (oldPassword === newPassword) {
+    throw new BadRequestError(
+      "New password cannot be the same as old password"
+    );
+  }
+
+  const lecturer = await User.findById(lecturerId);
+
+  if (!lecturer || lecturer.role !== "lecturer") {
+    throw new NotFoundError("Lecturer not found");
+  }
+
+  const isPasswordCorrect = await lecturer.comparePassword(oldPassword);
+  if (!isPasswordCorrect) {
+    throw new UnauthenticatedError("Old password is incorrect");
+  }
+
+  lecturer.password = newPassword;
+  await lecturer.save();
+
+  res.status(StatusCodes.OK).json({
+    success: true,
+    message: "Password changed successfully",
   });
 };
 
@@ -341,6 +473,8 @@ module.exports = {
   uploadResultForStudent,
   getResultWithStudentInfo,
   editStudentResult,
+  updateProfilePhoto,
+  changePassword,
   deleteResult,
   viewCoursesAssignedToLecturer,
   viewOwnProfile,

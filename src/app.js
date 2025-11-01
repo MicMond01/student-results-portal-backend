@@ -5,7 +5,7 @@ const express = require("express");
 const app = express();
 const authRouter = require("./routes/authRoutes");
 const adminRouter = require("./routes/admin");
-const lecturerRouter = require("./routes/lecturer");
+const lecturerRouter = require("./routes/lecturer/index");
 const studentRouter = require("./routes/student");
 const authenticationMiddleware = require("./middleware/authMiddleware");
 const {

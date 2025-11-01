@@ -42,7 +42,7 @@ const UserSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
-      enum: ["Male", "Female", "Other"],
+      enum: ["male", "female", "other"],
       default: null,
     },
     dateOfBirth: {
@@ -115,6 +115,27 @@ const UserSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: null,
+    },
+
+    // Account status fields
+    accountStatus: {
+      type: String,
+      enum: ["pending", "active", "suspended"],
+      default: "active",
+    },
+    isFirstLogin: {
+      type: Boolean,
+      default: true,
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verifiedAt: Date,
+    lastPasswordChange: Date,
+    isUsingDefaultPassword: {
+      type: Boolean,
+      default: false,
     },
   },
   {
