@@ -34,7 +34,6 @@ const calculateAcademicStats = (results) => {
   };
 };
 
-// Helper function to group results by session and semester
 const groupResultsBySession = (results) => {
   const grouped = {};
 
@@ -66,7 +65,54 @@ const groupResultsBySession = (results) => {
   return Object.values(grouped);
 };
 
+const groupCoursesBySession = (courses) => {
+  const grouped = {};
+
+  courses.forEach((course) => {
+    const sessionKey = course.session;
+
+    if (!grouped[sessionKey]) {
+      grouped[sessionKey] = {
+        session: course.session,
+        semesters: {
+          First: [],
+          Second: [],
+        },
+        totalCourses: 0,
+        totalCreditUnits: 0,
+      };
+    }
+
+    const semesterData = {
+      id: course._id,
+      title: course.title,
+      code: course.code,
+      creditUnit: course.creditUnit,
+      level: course.level,
+      description: course.description,
+      lecturer: course.lecturer
+        ? {
+            id: course.lecturer._id,
+            name: course.lecturer.name,
+            email: course.lecturer.email,
+          }
+        : null,
+    };
+
+    grouped[sessionKey].semesters[course.semester].push(semesterData);
+    grouped[sessionKey].totalCourses++;
+    grouped[sessionKey].totalCreditUnits += course.creditUnit;
+  });
+
+  return Object.values(grouped).sort((a, b) => {
+    const [yearA] = a.session.split("/");
+    const [yearB] = b.session.split("/");
+    return parseInt(yearB) - parseInt(yearA);
+  });
+};
+
 module.exports = {
   calculateAcademicStats,
   groupResultsBySession,
+  groupCoursesBySession,
 };

@@ -10,7 +10,6 @@ class ExamService {
       throw new NotFoundError("Course not found");
     }
 
-    // Calculate total marks from questions
     const totalMarks = examData.questions.reduce((sum, q) => sum + q.marks, 0);
 
     if (totalMarks !== examData.totalMarks) {
@@ -123,19 +122,15 @@ class ExamService {
       throw new NotFoundError("Exam not found");
     }
 
-    // Find the question first to get its marks
     const question = exam.questions.id(questionId);
     if (!question) {
       throw new NotFoundError("Question not found");
     }
 
-    // Store the marks before removing
     const questionMarks = question.marks;
 
-    // Remove the question from the array
     exam.questions.pull(questionId);
 
-    // Update total marks
     exam.totalMarks -= questionMarks;
 
     await exam.save();

@@ -1,11 +1,9 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { required } = require("joi");
 
 const emailRegex =
   /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-
 const matricRegex = /^\d{11}$/;
 
 const UserSchema = new mongoose.Schema(
@@ -30,9 +28,57 @@ const UserSchema = new mongoose.Schema(
       enum: ["student", "lecturer", "admin"],
       required: true,
     },
+
+    // ==================== STUDENT SPECIFIC FIELDS ====================
+    matricNo: {
+      type: String,
+      sparse: true,
+      trim: true,
+      default: null,
+    },
+    faculty: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     department: {
       type: String,
       trim: true,
+      default: null,
+    },
+    level: {
+      type: Number,
+      enum: [100, 200, 300, 400, 500],
+      default: null,
+    },
+    program: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    admissionYear: {
+      type: Number,
+      default: null,
+    },
+    session: {
+      type: String,
+      match: [/^\d{4}\/\d{4}$/, "Invalid session format (e.g., 2024/2025)"],
+      default: null,
+    },
+    academicAdvisor: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    status: {
+      type: String,
+      enum: ["Active", "Inactive", "Graduated", "Suspended"],
+      default: "Active",
+    },
+    school: {
+      type: String,
+      trim: true,
+      default: null,
     },
 
     // ==================== PERSONAL INFORMATION ====================
@@ -42,7 +88,7 @@ const UserSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
-      enum: ["male", "female", "other"],
+      enum: ["Male", "Female", "Other"],
       default: null,
     },
     dateOfBirth: {
@@ -54,28 +100,41 @@ const UserSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: null,
+    },
     address: {
       type: String,
       trim: true,
       default: null,
     },
+    placeOfBirth: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    stateOfOrigin: {
+      type: String,
+      trim: true,
+      default: null,
+    },
 
-    // ==================== ACADEMIC/PROFESSIONAL INFO (Lecturers) ====================
+    // ==================== VERIFICATION FIELDS ====================
+    jambNo: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    // ==================== LECTURER FIELDS ====================
     staffId: {
       type: String,
       trim: true,
       sparse: true,
       unique: true,
-      default: null,
-    },
-    faculty: {
-      type: String,
-      trim: true,
-      default: null,
-    },
-    school: {
-      type: String,
-      trim: true,
       default: null,
     },
     rank: {
@@ -88,6 +147,7 @@ const UserSchema = new mongoose.Schema(
         "Senior Lecturer",
         "Associate Professor",
         "Professor",
+        null,
       ],
       default: null,
     },
@@ -117,11 +177,11 @@ const UserSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Account status fields
+    // ==================== ACCOUNT STATUS ====================
     accountStatus: {
       type: String,
       enum: ["pending", "active", "suspended"],
-      default: "active",
+      default: "pending",
     },
     isFirstLogin: {
       type: Boolean,
@@ -135,16 +195,23 @@ const UserSchema = new mongoose.Schema(
     lastPasswordChange: Date,
     isUsingDefaultPassword: {
       type: Boolean,
-      default: false,
+      default: true,
     },
+    previousPasswords: [
+      {
+        type: String,
+      },
+    ], // Store hashed passwords to prevent reuse
   },
   {
     timestamps: true,
   }
 );
 
+// Hash password before saving
 UserSchema.pre("save", async function (next) {
   try {
+    // Auto-detect role on creation
     if (this.isNew && !this.role) {
       if (this.identifier === process.env.ADMIN_SECRET) {
         this.role = "admin";
@@ -160,6 +227,7 @@ UserSchema.pre("save", async function (next) {
       }
     }
 
+    // Hash password if modified
     if (this.isModified("password")) {
       const salt = await bcrypt.genSalt(10);
       this.password = await bcrypt.hash(this.password, salt);
@@ -182,6 +250,20 @@ UserSchema.methods.createJWT = function () {
 UserSchema.methods.comparePassword = async function (candidatePassword) {
   const isMatch = await bcrypt.compare(candidatePassword, this.password);
   return isMatch;
+};
+
+// Check if password was used before
+UserSchema.methods.wasPasswordUsedBefore = async function (newPassword) {
+  if (!this.previousPasswords || this.previousPasswords.length === 0) {
+    return false;
+  }
+
+  for (const oldHashedPassword of this.previousPasswords) {
+    const isMatch = await bcrypt.compare(newPassword, oldHashedPassword);
+    if (isMatch) return true;
+  }
+
+  return false;
 };
 
 module.exports = mongoose.model("User", UserSchema);

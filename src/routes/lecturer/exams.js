@@ -11,6 +11,9 @@ const {
   deleteQuestion,
   getExamsByCourse,
   getMyCourses,
+  upload,
+  bulkUploadQuestions,
+  downloadTemplate,
 } = require("../../controllers/lecturerExamController");
 
 // Get lecturer's courses (for creating exams)
@@ -35,5 +38,15 @@ router.delete("/:examId/questions/:questionId", deleteQuestion);
 
 // Get exams by course (only lecturer's courses)
 router.get("/courses/:courseId", getExamsByCourse);
+
+// Bulk upload questions
+router.post(
+  "/:examId/questions/bulk",
+  upload.single("file"),
+  bulkUploadQuestions
+);
+
+// Download templates
+router.get("/templates/:format", downloadTemplate);
 
 module.exports = router;
