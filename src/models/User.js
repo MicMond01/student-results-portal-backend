@@ -89,7 +89,6 @@ const UserSchema = new mongoose.Schema(
     gender: {
       type: String,
       enum: ["Male", "Female", "Other"],
-      default: null,
     },
     dateOfBirth: {
       type: Date,
@@ -135,7 +134,6 @@ const UserSchema = new mongoose.Schema(
       trim: true,
       sparse: true,
       unique: true,
-      default: null,
     },
     rank: {
       type: String,
@@ -202,6 +200,19 @@ const UserSchema = new mongoose.Schema(
         type: String,
       },
     ], // Store hashed passwords to prevent reuse
+
+    department: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+      default: null,
+    },
+
+    // For backward compatibility
+    departmentName: {
+      type: String,
+      trim: true,
+      default: null,
+    },
   },
   {
     timestamps: true,

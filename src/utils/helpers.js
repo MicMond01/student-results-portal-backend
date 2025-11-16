@@ -19,6 +19,9 @@ const calculateAcademicStats = (results) => {
   };
 
   results.forEach((result) => {
+    // ✅ skip if course is missing or not populated
+    if (!result.course || !result.course.creditUnit) return;
+
     const creditUnit = result.course.creditUnit || 0;
     const gradePoint = gradePoints[result.grade] || 0;
 
@@ -38,11 +41,15 @@ const groupResultsBySession = (results) => {
   const grouped = {};
 
   results.forEach((r) => {
-    const sessionKey = r.session;
+    // ✅ skip if course not found or not populated
+    if (!r.course || !r.course.code) return;
+
+    const sessionKey = r.session || "Unknown Session";
+    const semester = r.semester || "First";
 
     if (!grouped[sessionKey]) {
       grouped[sessionKey] = {
-        session: r.session,
+        session: sessionKey,
         semesters: {
           First: [],
           Second: [],
@@ -50,15 +57,15 @@ const groupResultsBySession = (results) => {
       };
     }
 
-    grouped[sessionKey].semesters[r.semester].push({
+    grouped[sessionKey].semesters[semester].push({
       course: r.course.code,
-      title: r.course.title,
-      level: r.course.level,
-      creditUnit: r.course.creditUnit,
-      ca: r.ca,
-      exam: r.exam,
-      total: r.total,
-      grade: r.grade,
+      title: r.course.title || "Untitled Course",
+      level: r.course.level || "N/A",
+      creditUnit: r.course.creditUnit || 0,
+      ca: r.ca || 0,
+      exam: r.exam || 0,
+      total: r.total || 0,
+      grade: r.grade || "-",
     });
   });
 
@@ -69,11 +76,14 @@ const groupCoursesBySession = (courses) => {
   const grouped = {};
 
   courses.forEach((course) => {
+    if (!course || !course.session) return;
+
     const sessionKey = course.session;
+    const semester = course.semester || "First";
 
     if (!grouped[sessionKey]) {
       grouped[sessionKey] = {
-        session: course.session,
+        session: sessionKey,
         semesters: {
           First: [],
           Second: [],
@@ -85,23 +95,23 @@ const groupCoursesBySession = (courses) => {
 
     const semesterData = {
       id: course._id,
-      title: course.title,
-      code: course.code,
-      creditUnit: course.creditUnit,
-      level: course.level,
-      description: course.description,
+      title: course.title || "Untitled Course",
+      code: course.code || "N/A",
+      creditUnit: course.creditUnit || 0,
+      level: course.level || "N/A",
+      description: course.description || "",
       lecturer: course.lecturer
         ? {
             id: course.lecturer._id,
-            name: course.lecturer.name,
-            email: course.lecturer.email,
+            name: course.lecturer.name || "Unknown Lecturer",
+            email: course.lecturer.email || "No Email",
           }
         : null,
     };
 
-    grouped[sessionKey].semesters[course.semester].push(semesterData);
+    grouped[sessionKey].semesters[semester].push(semesterData);
     grouped[sessionKey].totalCourses++;
-    grouped[sessionKey].totalCreditUnits += course.creditUnit;
+    grouped[sessionKey].totalCreditUnits += course.creditUnit || 0;
   });
 
   return Object.values(grouped).sort((a, b) => {

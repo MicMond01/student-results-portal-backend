@@ -4,78 +4,80 @@ const CourseSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, "Course title is required"],
+      required: [true, "Please provide course title"],
       trim: true,
-      minlength: [3, "Course title must be at least 3 characters long"],
     },
-
     code: {
       type: String,
-      required: [true, "Course code is required"],
+      required: [true, "Please provide course code"],
       unique: true,
       uppercase: true,
-      match: [/^[A-Z]{3}\d{3}$/, "Invalid course code format (e.g., CSC101)"],
+      trim: true,
     },
-
-    // The lecturer or instructor assigned to the course
+    creditUnit: {
+      type: Number,
+      required: [true, "Please provide credit unit"],
+      min: 1,
+      max: 6,
+    },
+    department: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+      required: [true, "Please provide department"],
+    },
     lecturer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: [true, "Lecturer is required"],
+      required: [true, "Please assign a lecturer"],
     },
-
-    department: {
-      type: String,
-      required: [true, "Department is required"],
-      trim: true,
-      default: "Department of Computing",
-    },
-
     level: {
       type: Number,
-      required: [true, "Level is required"],
       enum: [100, 200, 300, 400, 500],
+      required: [true, "Please provide course level"],
     },
-
-    creditUnit: {
-      type: Number,
-      required: [true, "Credit unit is required"],
-      min: [1, "Credit unit must be at least 1"],
-      max: [6, "Credit unit cannot exceed 6"],
+    semester: {
+      type: String,
+      enum: ["First", "Second"],
+      required: [true, "Please provide semester"],
     },
-
-    // List of students registered for this course
+    session: {
+      type: String,
+      required: [true, "Please provide session"],
+      match: [/^\d{4}\/\d{4}$/, "Invalid session format (e.g., 2024/2025)"],
+    },
     students: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
       },
     ],
-
-    semester: {
-      type: String,
-      required: [true, "Semester is required"],
-      enum: ["First", "Second"],
-    },
-
     description: {
       type: String,
       trim: true,
-      maxlength: [500, "Description cannot exceed 500 characters"],
+      default: null,
     },
-
+    courseType: {
+      type: String,
+      enum: ["Core", "Elective", "General"],
+      default: "Core",
+    },
     isActive: {
       type: Boolean,
       default: true,
     },
-
-    session: {
-      type: String,
-      required: [true, "Session is required"],
-      match: [/^\d{4}\/\d{4}$/, "Invalid session format (e.g., 2024/2025)"],
+    maxStudents: {
+      type: Number,
+      default: null,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
+
+// Indexes for better query performance
+CourseSchema.index({ department: 1, level: 1, semester: 1 });
+CourseSchema.index({ lecturer: 1, session: 1 });
+CourseSchema.index({ session: 1, semester: 1, level: 1 });
 
 module.exports = mongoose.model("Course", CourseSchema);

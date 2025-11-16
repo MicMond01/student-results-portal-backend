@@ -4,7 +4,7 @@ require("express-async-errors");
 const express = require("express");
 const app = express();
 const authRouter = require("./routes/authRoutes");
-const adminRouter = require("./routes/admin");
+const adminRouter = require("./routes/admin/index");
 const lecturerRouter = require("./routes/lecturer/index");
 const studentRouter = require("./routes/student");
 const authenticationMiddleware = require("./middleware/authMiddleware");
