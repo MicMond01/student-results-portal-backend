@@ -27,10 +27,23 @@ class LecturerService {
 
     if (department) query.department = department;
 
-    return await User.find(query)
+    const lecturers = await User.find(query)
       .select("-password")
-      .populate("department", "name code faculty")
+
+      .populate("department", "name code faculty hod")
       .sort({ name: 1 });
+
+    const result = lecturers.map((lecturer) => {
+      const lec = lecturer.toObject();
+      lec.isHod = !!(
+        lec.department &&
+        lec.department.hod &&
+        lec.department.hod.toString() === lecturer._id.toString()
+      );
+      return lec;
+    });
+
+    return result;
   }
 
   async getLecturersByDepartment(deptId) {
@@ -44,7 +57,17 @@ class LecturerService {
       .select("-password")
       .sort({ name: 1 });
 
-    return { department: dept, count: lecturers.length, lecturers };
+    const result = lecturers.map((lecturer) => {
+      const lec = lecturer.toObject();
+      lec.isHod = dept.hod && dept.hod.toString() === lecturer._id.toString();
+      return lec;
+    });
+
+    return {
+      department: dept,
+      count: result.length,
+      lecturers: result,
+    };
   }
 
   async updateLecturer(id, data) {

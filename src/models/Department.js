@@ -25,6 +25,11 @@ const DepartmentSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    hod: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     hodName: {
       type: String,
       trim: true,

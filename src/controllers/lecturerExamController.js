@@ -128,9 +128,19 @@ const getMyExams = async (req, res) => {
   });
 
   // ✅ Filter to only lecturer's courses
-  const myExams = exams.filter((exam) =>
-    myCourseIds.some((id) => id.toString() === exam.course._id.toString())
-  );
+  const myExams = exams.filter((exam) => {
+    if (!exam.course) return false;
+
+    let examCourseId;
+
+    if (typeof exam.course === "object" && exam.course !== null) {
+      examCourseId = exam.course._id?.toString();
+    } else {
+      examCourseId = exam.course.toString();
+    }
+
+    return myCourseIds.some((id) => id.toString() === examCourseId);
+  });
 
   res.status(StatusCodes.OK).json({
     success: true,
