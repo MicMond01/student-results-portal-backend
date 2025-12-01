@@ -27,7 +27,17 @@ const getAllLecturers = async (req, res) => {
 };
 
 const getLecturersByDepartment = async (req, res) => {
-  const data = await LecturerService.getLecturersByDepartment(req.params.deptId);
+  const data = await LecturerService.getLecturersByDepartment(
+    req.params.deptId
+  );
+  res.status(StatusCodes.OK).json({
+    success: true,
+    ...data,
+  });
+};
+
+const getLecturerDetails = async (req, res) => {
+  const data = await LecturerService.getLecturerDetails(req.params.id);
   res.status(StatusCodes.OK).json({
     success: true,
     ...data,
@@ -35,11 +45,32 @@ const getLecturersByDepartment = async (req, res) => {
 };
 
 const updateLecturer = async (req, res) => {
-  const lecturer = await LecturerService.updateLecturer(req.params.id, req.body);
+  const lecturer = await LecturerService.updateLecturer(
+    req.params.id,
+    req.body
+  );
   res.status(StatusCodes.OK).json({
     success: true,
     message: "Lecturer updated successfully",
     lecturer,
+  });
+};
+
+const resetLecturerPassword = async (req, res) => {
+  const { newPassword } = req.body;
+  const lecturer = await lecturerService.resetLecturerPassword(
+    req.params.id,
+    newPassword
+  );
+
+  res.status(StatusCodes.OK).json({
+    success: true,
+    message: "Password reset successfully",
+    lecturer: {
+      id: lecturer._id,
+      name: lecturer.name,
+      email: lecturer.email,
+    },
   });
 };
 
@@ -57,4 +88,6 @@ module.exports = {
   getLecturersByDepartment,
   updateLecturer,
   deleteLecturer,
+  resetLecturerPassword,
+  getLecturerDetails,
 };

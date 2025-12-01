@@ -65,6 +65,141 @@ class ResultService {
     return results;
   }
 
+  async getStudentResults(studentId, filters = {}) {
+    const { session, semester, level } = filters;
+
+    // Verify student exists
+    const student = await User.findOne({ _id: studentId, role: "student" })
+      .select("-password")
+      .populate({
+        path: "department",
+        select: "name code faculty",
+      });
+
+    if (!student) {
+      throw new NotFoundError("Student not found");
+    }
+
+    const query = { student: studentId };
+
+    if (session) query.session = session;
+    if (semester) query.semester = semester;
+
+    let results = await Result.find(query)
+      .populate({
+        path: "course",
+        select: "title code creditUnit level semester session department",
+        populate: {
+          path: "department",
+          select: "name code",
+        },
+      })
+      .sort({ session: -1, semester: 1, createdAt: -1 });
+
+    // Filter by course level if provided
+    if (level) {
+      results = results.filter((r) => r.course.level === parseInt(level));
+    }
+
+    return {
+      student,
+      results,
+    };
+  }
+
+  async getResultsByCourse(courseId, filters = {}) {
+    const { session, semester } = filters;
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      throw new NotFoundError("Course not found");
+    }
+
+    const query = { course: courseId };
+
+    if (session) query.session = session;
+    if (semester) query.semester = semester;
+
+    const results = await Result.find(query)
+      .populate({
+        path: "student",
+        select:
+          "name matricNo department level email phone gender status program session admissionYear",
+
+        populate: {
+          path: "department",
+          select: "name code faculty",
+        },
+      })
+      .populate({
+        path: "course",
+        select: "title code creditUnit level semester session",
+      })
+      .sort({ total: -1 }); // Sort by highest score first
+
+    return results;
+  }
+
+  async getResultsByLecturer(lecturerId, filters = {}) {
+    const { session, semester } = filters;
+
+    const lecturer = await User.findOne({ _id: lecturerId, role: "lecturer" });
+    if (!lecturer) {
+      throw new NotFoundError("Lecturer not found");
+    }
+
+    // Get all courses taught by this lecturer
+    const courseQuery = { lecturer: lecturerId };
+    if (session) courseQuery.session = session;
+    if (semester) courseQuery.semester = semester;
+
+    const courses = await Course.find(courseQuery).select("_id title code");
+    const courseIds = courses.map((c) => c._id);
+
+    if (courseIds.length === 0) {
+      return {
+        lecturer: {
+          _id: lecturer._id,
+          name: lecturer.name,
+          email: lecturer.email,
+        },
+        courses: [],
+        totalResults: 0,
+        results: [],
+      };
+    }
+
+    const results = await Result.find({ course: { $in: courseIds } })
+      .populate({
+        path: "student",
+        select: "name matricNo department level",
+        populate: {
+          path: "department",
+          select: "name code",
+        },
+      })
+      .populate({
+        path: "course",
+        select: "title code creditUnit level semester session",
+      })
+      .sort({ createdAt: -1 });
+
+    return {
+      lecturer: {
+        _id: lecturer._id,
+        name: lecturer.name,
+        email: lecturer.email,
+      },
+      courses: courses.map((c) => ({
+        _id: c._id,
+        title: c.title,
+        code: c.code,
+      })),
+      totalResults: results.length,
+      results,
+    };
+  }
+
   async getAllResults(filters = {}) {
     const { student, course, department, session, semester } = filters;
     const query = {};
@@ -75,8 +210,23 @@ class ResultService {
     if (semester) query.semester = semester;
 
     let q = Result.find(query)
-      .populate("student", "name matricNo department")
-      .populate("course", "title code department");
+      .populate({
+        path: "student",
+        select:
+          "name matricNo department level email phone gender status program session admissionYear",
+        populate: {
+          path: "department",
+          select: "name code faculty",
+        },
+      })
+      .populate({
+        path: "course",
+        select: "title code creditUnit level semester session department",
+        populate: {
+          path: "department",
+          select: "name code",
+        },
+      });
 
     if (department) {
       q = q.populate({

@@ -8,14 +8,22 @@ const {
   getStudentsByDepartment,
   updateStudent,
   deleteStudent,
+  getStudentDetails,
+  getStudentUploadTemplate,
 } = require("../../controllers/admin/students");
+const upload = require("../../middleware/fileUpload");
 
 router.route("/").post(createStudent).get(getAllStudents);
 
-router.post("/bulk", bulkCreateStudents);
+router.post("/bulk", upload.single("file"), bulkCreateStudents);
 
 router.get("/department/:deptId", getStudentsByDepartment);
+router.get("/template/:format", getStudentUploadTemplate);
 
-router.route("/:id").patch(updateStudent).delete(deleteStudent);
+router
+  .route("/:id")
+  .get(getStudentDetails)
+  .patch(updateStudent)
+  .delete(deleteStudent);
 
 module.exports = router;

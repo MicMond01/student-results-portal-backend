@@ -34,6 +34,22 @@ const bulkCreateResults = async (req, res) => {
   });
 };
 
+const getStudentResults = async (req, res) => {
+  const { session, semester, level } = req.query;
+  const data = await ResultService.getStudentResults(req.params.studentId, {
+    session,
+    semester,
+    level,
+  });
+
+  res.status(StatusCodes.OK).json({
+    success: true,
+    count: data.results.length,
+    student: data.student,
+    results: data.results,
+  });
+};
+
 const getAllResults = async (req, res) => {
   const { student, course, department, session, semester } = req.query;
   const results = await ResultService.getAllResults({
@@ -48,6 +64,33 @@ const getAllResults = async (req, res) => {
     success: true,
     count: results.length,
     results,
+  });
+};
+
+const getResultsByCourse = async (req, res) => {
+  const { session, semester } = req.query;
+  const results = await ResultService.getResultsByCourse(req.params.courseId, {
+    session,
+    semester,
+  });
+
+  res.status(StatusCodes.OK).json({
+    success: true,
+    count: results.length,
+    results,
+  });
+};
+
+const getResultsByLecturer = async (req, res) => {
+  const { session, semester } = req.query;
+  const data = await ResultService.getResultsByLecturer(req.params.lecturerId, {
+    session,
+    semester,
+  });
+
+  res.status(StatusCodes.OK).json({
+    success: true,
+    ...data,
   });
 };
 
@@ -71,6 +114,9 @@ const deleteResult = async (req, res) => {
 module.exports = {
   createResult,
   bulkCreateResults,
+  getStudentResults,
+  getResultsByCourse,
+  getResultsByLecturer,
   getAllResults,
   updateResult,
   deleteResult,
