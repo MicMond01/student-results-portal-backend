@@ -2,10 +2,12 @@ const Result = require("../../models/Result");
 const User = require("../../models/User");
 const Course = require("../../models/Course");
 const { NotFoundError, BadRequestError } = require("../../errors");
+const Department = require("../../models/Department");
 
 class ResultService {
   async createResult(data) {
     const { student, course, ca, exam } = data;
+    console.log(student, course, ca, exam);
 
     if (!student || !course || ca === undefined || exam === undefined) {
       throw new BadRequestError("Missing required fields");
@@ -25,46 +27,175 @@ class ResultService {
     return await Result.create(data);
   }
 
-  async bulkCreateResults(resultsData) {
+  async getResultsUploadTemplate(format) {
+    const template = {
+      headers: ["matricNo", "name", "ca", "exam"],
+      sampleData: [
+        {
+          matricNo: "LASU/CS/2024/000001",
+          name: "John Doe",
+          ca: 28,
+          exam: 55,
+        },
+        {
+          matricNo: "LASU/CS/2024/000002",
+          name: "Jane Smith",
+          ca: 30,
+          exam: 60,
+        },
+      ],
+      instructions: {
+        note: "Course and department will be selected during upload",
+        requiredFields: [
+          "matricNo",
+          "name - Optional Field ",
+          "ca - (0-40)",
+          "exam - (0-60)",
+        ],
+        matricNote: "Matric number is used to identify students",
+        nameNote: "Name is for reference only, not used for matching",
+      },
+    };
+
+    return template;
+  }
+
+  async bulkCreateResults(resultsData, courseId, departmentId) {
     const results = { success: [], failed: [] };
 
-    for (const item of resultsData) {
+    // Verify course exists
+    const course = await Course.findById(courseId).populate("department");
+    if (!course) {
+      throw new NotFoundError("Course not found");
+    }
+
+    // Verify course belongs to department
+    if (course.department._id.toString() !== departmentId) {
+      throw new BadRequestError(
+        "Course does not belong to selected department"
+      );
+    }
+
+    // Verify department exists
+    const department = await Department.findById(departmentId);
+    if (!department) {
+      throw new NotFoundError("Department not found");
+    }
+
+    for (const data of resultsData) {
       try {
-        const [studentExists, courseExists] = await Promise.all([
-          User.findOne({ _id: item.student, role: "student" }),
-          Course.findById(item.course),
-        ]);
+        const { matricNo, name, ca, exam } = data;
 
-        if (!studentExists) {
-          results.failed.push({ data: item, error: "Student not found" });
+        // Validate required fields
+        if (!matricNo) {
+          results.failed.push({
+            data,
+            error: "Matric number is required",
+          });
           continue;
         }
 
-        if (!courseExists) {
-          results.failed.push({ data: item, error: "Course not found" });
+        if (ca === undefined || ca === null) {
+          results.failed.push({
+            data,
+            error: "CA score is required",
+          });
           continue;
         }
 
-        const exists = await Result.findOne({
-          student: item.student,
-          course: item.course,
+        if (exam === undefined || exam === null) {
+          results.failed.push({
+            data,
+            error: "Exam score is required",
+          });
+          continue;
+        }
+
+        // Validate score ranges
+        if (ca < 0 || ca > 40) {
+          results.failed.push({
+            data,
+            error: "CA must be between 0 and 40",
+          });
+          continue;
+        }
+
+        if (exam < 0 || exam > 60) {
+          results.failed.push({
+            data,
+            error: "Exam must be between 0 and 60",
+          });
+          continue;
+        }
+
+        // Find student by matric number
+        const student = await User.findOne({
+          matricNo: matricNo.trim(),
+          role: "student",
         });
 
-        if (exists) {
-          results.failed.push({ data: item, error: "Result exists" });
+        if (!student) {
+          results.failed.push({
+            data,
+            error: `Student with matric ${matricNo} not found`,
+          });
           continue;
         }
 
-        const created = await Result.create(item);
-        results.success.push(created);
-      } catch (err) {
-        results.failed.push({ data: item, error: err.message });
+        // Check if student is in the correct department
+        if (student.department.toString() !== departmentId) {
+          results.failed.push({
+            data,
+            error: `Student ${matricNo} is not in ${department.name} department`,
+          });
+          continue;
+        }
+
+        // Check if result already exists
+        const existingResult = await Result.findOne({
+          student: student._id,
+          course: courseId,
+          session: course.session,
+          semester: course.semester,
+        });
+
+        if (existingResult) {
+          results.failed.push({
+            data,
+            error: `Result already exists for ${matricNo} in ${course.code}`,
+          });
+          continue;
+        }
+
+        // Create result
+        const result = await Result.create({
+          student: student._id,
+          course: courseId,
+          session: course.session,
+          semester: course.semester,
+          ca: parseFloat(ca),
+          exam: parseFloat(exam),
+          uploadedBy: course.lecturer,
+        });
+
+        results.success.push({
+          matricNo,
+          name: student.name,
+          ca: result.ca,
+          exam: result.exam,
+          total: result.total,
+          grade: result.grade,
+        });
+      } catch (error) {
+        results.failed.push({
+          data,
+          error: error.message,
+        });
       }
     }
 
     return results;
   }
-
   async getStudentResults(studentId, filters = {}) {
     const { session, semester, level } = filters;
 
@@ -86,6 +217,14 @@ class ResultService {
     if (semester) query.semester = semester;
 
     let results = await Result.find(query)
+      .populate({
+        path: "student",
+        select: "name matricNo department",
+        populate: {
+          path: "department",
+          select: "name code",
+        },
+      })
       .populate({
         path: "course",
         select: "title code creditUnit level semester session department",
@@ -240,17 +379,27 @@ class ResultService {
     return department ? results.filter((r) => r.student) : results;
   }
 
-  async updateResult(id, data) {
-    const result = await Result.findByIdAndUpdate(id, data, {
-      new: true,
-      runValidators: true,
-    })
-      .populate("student", "name matricNo")
-      .populate("course", "title code");
+  async updateResult(resultId, data) {
+    const result = await Result.findById(resultId);
 
-    if (!result) throw new NotFoundError("Result not found");
+    if (!result) {
+      throw new NotFoundError("Result not found");
+    }
 
-    return result;
+    // Update fields
+    if (data.ca !== undefined) result.ca = data.ca;
+    if (data.exam !== undefined) result.exam = data.exam;
+    if (data.session) result.session = data.session;
+    if (data.semester) result.semester = data.semester;
+
+    await result.save();
+
+    // Populate and return
+    const updatedResult = await Result.findById(result._id)
+      .populate("student", "name matricNo department")
+      .populate("course", "title code creditUnit");
+
+    return updatedResult;
   }
 
   async deleteResult(id) {
