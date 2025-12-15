@@ -21,24 +21,24 @@ const login = async (req, res) => {
     throw new UnauthenticatedError("Invalid credentials");
   }
 
-  // Check account status
   if (user.accountStatus === "suspended") {
     throw new UnauthenticatedError(
       "Your account has been suspended. Contact admin."
     );
   }
 
-  // Generate token
   const token = user.createJWT();
 
-  // ✅ Determine next step based on user status
-  let nextStep = "dashboard"; // Default for already verified users
+  const isStudentOrLecturer =
+    user.role === "student" || user.role === "lecturer";
 
-  if (user.role === "student") {
+  let nextStep = "dashboard";
+
+  if (isStudentOrLecturer) {
     if (!user.isVerified) {
-      nextStep = "verification"; // Need to verify identity
+      nextStep = "verification";
     } else if (user.isUsingDefaultPassword) {
-      nextStep = "change-password"; // Need to change password
+      nextStep = "change-password";
     } else if (user.isFirstLogin) {
       nextStep = "dashboard";
       user.isFirstLogin = false;
@@ -56,22 +56,16 @@ const login = async (req, res) => {
       role: user.role,
       accountStatus: user.accountStatus,
     },
-    // ✅ Tell frontend what to do next
-    nextStep, // "verification" | "change-password" | "dashboard"
-    requiresVerification: !user.isVerified && user.role === "student",
-    requiresPasswordChange:
-      user.isUsingDefaultPassword && user.role === "student",
+    nextStep,
+    requiresVerification: !user.isVerified && isStudentOrLecturer,
+    requiresPasswordChange: user.isUsingDefaultPassword && isStudentOrLecturer,
   });
 };
 
 // ==================== STAGE 2: VERIFY IDENTITY ====================
 const verifyIdentity = async (req, res) => {
-  const userId = req.user.userId; // From JWT middleware
-  const { dateOfBirth, phone, jambNo } = req.body;
-
-  if (!dateOfBirth || !phone || !jambNo) {
-    throw new BadRequestError("Please provide all verification details");
-  }
+  const userId = req.user.userId;
+  const { dateOfBirth, phone, jambNo, staffId } = req.body;
 
   const user = await User.findById(userId);
 
@@ -83,32 +77,54 @@ const verifyIdentity = async (req, res) => {
     throw new BadRequestError("Account already verified");
   }
 
-  // ✅ Verify the information matches database
-  const formatDate = (date) => new Date(date).toISOString().split("T")[0]; // '2003-01-09'
+  const isStudentOrLecturer =
+    user.role === "student" || user.role === "lecturer";
 
-  const dobMatch = formatDate(user.dateOfBirth) === dateOfBirth;
-  const phoneClean = phone.replace(/\s/g, "");
-  const userPhoneClean = user.phone.replace(/\s/g, "");
-  const phoneMatch = phoneClean === userPhoneClean;
-  const jambMatch = jambNo === user.jambNo;
+  const normalizeDate = (d) => new Date(d).toISOString().split("T")[0];
+  const normalizePhone = (p) => p.replace(/\s/g, "");
+  const normalize = (s) => (s || "").trim();
 
-  if (!dobMatch || !phoneMatch || !jambMatch) {
+  if (!dateOfBirth || !phone) {
+    throw new BadRequestError("Please provide date of birth and phone number");
+  }
+
+  const dobMatch = normalizeDate(user.dateOfBirth) === dateOfBirth;
+  const phoneMatch = normalizePhone(user.phone) === normalizePhone(phone);
+
+  if (!dobMatch || !phoneMatch) {
     throw new BadRequestError(
-      "Verification failed. The information you provided does not match our records. Please contact admin."
+      "Verification failed. Your personal details do not match our records."
     );
   }
 
-  // ✅ Mark as verified
+  if (user.role === "student") {
+    if (!jambNo) throw new BadRequestError("Please provide your JAMB number");
+    const jambMatch = normalize(jambNo) === normalize(user.jambNo);
+    if (!jambMatch)
+      throw new BadRequestError(
+        "Verification failed. JAMB number does not match our records."
+      );
+  }
+
+  if (user.role === "lecturer") {
+    if (!staffId) throw new BadRequestError("Please provide your Staff ID");
+    const staffMatch = normalize(staffId) === normalize(user.staffId);
+    if (!staffMatch)
+      throw new BadRequestError(
+        "Verification failed. Staff ID does not match our records."
+      );
+  }
+
   user.isVerified = true;
-  user.verifiedAt = new Date();
   user.accountStatus = "active";
+  user.verifiedAt = new Date();
   await user.save();
 
   res.status(StatusCodes.OK).json({
     success: true,
     message: "Identity verified successfully",
     nextStep: user.isUsingDefaultPassword ? "change-password" : "dashboard",
-    requiresPasswordChange: user.isUsingDefaultPassword,
+    requiresPasswordChange: user.isUsingDefaultPassword && isStudentOrLecturer,
   });
 };
 
