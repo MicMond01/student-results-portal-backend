@@ -1,19 +1,22 @@
 const { StatusCodes } = require("http-status-codes");
-const { BadRequestError, NotFoundError } = require("../errors");
-const ResultService = require("../services/resultService");
-const LecturerService = require("../services/lecturerService");
+const { BadRequestError, NotFoundError } = require("../../errors");
+const ResultService = require("../../services/resultService");
+const LecturerService = require("../../services/lecturerService");
 const {
   groupResultsByCourse,
   groupResultsByStudent,
-} = require("../utils/resultFormatters");
+} = require("../../utils/resultFormatters");
 const {
   calculateSessionGPA,
   calculateOverallStats,
   calculatePassRate,
   getAtRiskStudents,
-} = require("../utils/gradeCalculations");
-const Course = require("../models/Course");
-const User = require("../models/User");
+} = require("../../utils/gradeCalculations");
+const Course = require("../../models/Course");
+const User = require("../../models/User");
+
+const XLSX = require("xlsx");
+const CourseService = require("../../services/courseService");
 
 const getAllResultsUplodedByLecturer = async (req, res) => {
   const lecturerId = req.user.userId;
@@ -142,7 +145,7 @@ const uploadResultForStudent = async (req, res) => {
   }
 
   const studentDoc = await User.findOne({
-    identifier: student,
+    matricNo: student,
     role: "student",
   });
   if (!studentDoc) {
@@ -284,6 +287,7 @@ const viewOwnProfile = async (req, res) => {
     stats,
     latestCourse: latestCourse
       ? {
+          id: latestCourse._id,
           title: latestCourse.title,
           code: latestCourse.code,
           semester: latestCourse.semester,
@@ -466,6 +470,191 @@ const changePassword = async (req, res) => {
   });
 };
 
+const getResultsUploadTemplate = async (req, res) => {
+  const format = req.params.format.trim().toLowerCase();
+
+  if (!["txt", "excel"].includes(format)) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      message: "Invalid format. Use 'txt' or 'excel'",
+    });
+  }
+
+  const template = await ResultService.getResultsUploadTemplate(format);
+
+  if (format === "txt") {
+    const txtContent = [
+      "# RESULTS BULK UPLOAD TEMPLATE",
+      "# Instructions:",
+      `# - Required fields: ${template.instructions.requiredFields.join(", ")}`,
+      `# - CA Range: ${template.instructions.caRange}`,
+      `# - Exam Range: ${template.instructions.examRange}`,
+      `# - ${template.instructions.matricNote}`,
+      `# - ${template.instructions.nameNote}`,
+      "# - Course will be selected during upload",
+      "# - Each line represents one student's result",
+      "# - Fields are separated by tabs",
+      "#",
+      "",
+      template.headers.join("\t"),
+      "",
+      ...template.sampleData.map((row) =>
+        template.headers.map((h) => row[h] || "").join("\t")
+      ),
+    ].join("\n");
+
+    res.setHeader("Content-Type", "text/plain");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=results_upload_template.txt"
+    );
+    res.status(StatusCodes.OK).send(txtContent);
+  } else {
+    const workbook = XLSX.utils.book_new();
+
+    const instructionsData = [
+      ["RESULTS BULK UPLOAD TEMPLATE - INSTRUCTIONS"],
+      [""],
+      ["Required Fields", ...template.instructions.requiredFields],
+      ["Optional Fields", ...template.instructions.optionalFields],
+      [""],
+      ["CA Score Range", template.instructions.caRange],
+      ["Exam Score Range", template.instructions.examRange],
+      [""],
+      ["Matric Number", template.instructions.matricNote],
+      ["Name Field", template.instructions.nameNote],
+      [""],
+      ["Note", template.instructions.note],
+    ];
+
+    const instructionsSheet = XLSX.utils.aoa_to_sheet(instructionsData);
+    XLSX.utils.book_append_sheet(workbook, instructionsSheet, "Instructions");
+
+    const templateSheet = XLSX.utils.json_to_sheet(template.sampleData, {
+      header: template.headers,
+    });
+    XLSX.utils.book_append_sheet(workbook, templateSheet, "Results");
+
+    const excelBuffer = XLSX.write(workbook, {
+      type: "buffer",
+      bookType: "xlsx",
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=results_upload_template.xlsx"
+    );
+    res.status(StatusCodes.OK).send(excelBuffer);
+  }
+};
+
+const bulkUploadResults = async (req, res) => {
+  let resultsData = [];
+  const { courseId } = req.body;
+  const lecturerId = req.user.userId;
+
+  if (!courseId) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      message: "Course is required",
+    });
+  }
+
+  if (req.file) {
+    const fileBuffer = req.file.buffer;
+    const fileType = req.file.mimetype;
+
+    if (fileType === "text/plain") {
+      // Parse TXT
+      const txtText = fileBuffer.toString("utf-8");
+      const lines = txtText
+        .split("\n")
+        .filter((line) => line.trim() && !line.startsWith("#"));
+
+      const headers = lines[0].split("\t").map((h) => h.trim());
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split("\t").map((v) => v.trim());
+        const result = {};
+        headers.forEach((header, index) => {
+          const value = values[index];
+          if (header === "ca" || header === "exam") {
+            result[header] = value ? parseFloat(value) : null;
+          } else {
+            result[header] = value || null;
+          }
+        });
+        resultsData.push(result);
+      }
+    } else if (
+      fileType === "application/vnd.ms-excel" ||
+      fileType ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ) {
+      // Parse Excel
+      const workbook = XLSX.read(fileBuffer);
+      const sheetName =
+        workbook.SheetNames.find((name) => name === "Results") ||
+        workbook.SheetNames[0];
+      resultsData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    } else {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        message: "Invalid file type. Only TXT and Excel files allowed",
+      });
+    }
+  } else {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      message: "No file provided",
+    });
+  }
+
+  if (!resultsData || resultsData.length === 0) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      message: "No results data provided",
+    });
+  }
+
+  console.log(resultsData);
+
+  const results = await ResultService.bulkUploadResults(
+    resultsData,
+    courseId,
+    lecturerId
+  );
+
+  res.status(StatusCodes.CREATED).json({
+    success: true,
+    message: `${results.success.length} results uploaded successfully`,
+    results: {
+      successCount: results.success.length,
+      failedCount: results.failed.length,
+      success: results.success,
+      failed: results.failed,
+    },
+  });
+};
+
+const getCourseDetails = async (req, res) => {
+  const lecturerId = req.user.userId;
+
+  const data = await CourseService.getCourseDetails(
+    req.params.courseId,
+    lecturerId
+  );
+
+  res.status(StatusCodes.OK).json({
+    success: true,
+    ...data,
+  });
+};
+
 module.exports = {
   getAllResultsUplodedByLecturer,
   getAllResultsForMyCourses,
@@ -479,4 +668,7 @@ module.exports = {
   viewCoursesAssignedToLecturer,
   viewOwnProfile,
   updateProfileInfo,
+  getResultsUploadTemplate,
+  bulkUploadResults,
+  getCourseDetails,
 };

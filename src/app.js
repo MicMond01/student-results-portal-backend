@@ -3,10 +3,10 @@ require("express-async-errors");
 
 const express = require("express");
 const app = express();
-const authRouter = require("./routes/authRoutes");
 const adminRouter = require("./routes/admin/index");
 const lecturerRouter = require("./routes/lecturer/index");
-const studentRouter = require("./routes/student");
+const authRouter = require("./routes/auth/authRoutes");
+const studentRouter = require("./routes/student/student");
 const authenticationMiddleware = require("./middleware/authMiddleware");
 const {
   adminOnly,

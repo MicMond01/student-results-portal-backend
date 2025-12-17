@@ -69,6 +69,22 @@ const CourseSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    registrationOpen: {
+      type: Boolean,
+      default: true,
+    },
+    registrationDeadline: {
+      type: Date,
+      default: null, // null means no deadline set
+    },
+    registrationOpenDate: {
+      type: Date,
+      default: Date.now,
+    },
+    maxStudents: {
+      type: Number,
+      default: null, // null means unlimited
+    },
   },
   {
     timestamps: true,
@@ -79,5 +95,23 @@ const CourseSchema = new mongoose.Schema(
 CourseSchema.index({ department: 1, level: 1, semester: 1 });
 CourseSchema.index({ lecturer: 1, session: 1 });
 CourseSchema.index({ session: 1, semester: 1, level: 1 });
+
+CourseSchema.methods.isRegistrationOpen = function () {
+  if (!this.registrationOpen) return false;
+
+  if (this.registrationDeadline && new Date() > this.registrationDeadline) {
+    return false;
+  }
+
+  if (this.registrationOpenDate && new Date() < this.registrationOpenDate) {
+    return false;
+  }
+
+  if (this.maxStudents && this.students.length >= this.maxStudents) {
+    return false;
+  }
+
+  return true;
+};
 
 module.exports = mongoose.model("Course", CourseSchema);

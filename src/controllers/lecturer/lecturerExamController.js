@@ -1,11 +1,11 @@
 const { StatusCodes } = require("http-status-codes");
-const ExamService = require("../services/examService");
-const Course = require("../models/Course");
+const ExamService = require("../../services/examService");
+const Course = require("../../models/Course");
 const {
   BadRequestError,
   UnauthorizedError,
   NotFoundError,
-} = require("../errors");
+} = require("../../errors");
 
 const multer = require("multer");
 const XLSX = require("xlsx");

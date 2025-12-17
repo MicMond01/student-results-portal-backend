@@ -8,20 +8,40 @@ const {
   getAllResultsForMyCourses,
   editStudentResult,
   deleteResult,
-} = require("../../controllers/lecturer");
-const { canModifyResult } = require("../../middleware/resourceAuthorization");
+  getResultsUploadTemplate,
+  bulkUploadResults,
+} = require("../../controllers/lecturer/lecturer");
 
+const { canModifyResult } = require("../../middleware/resourceAuthorization");
+const {
+  checkSessionActive,
+  checkResultSessionActive,
+} = require("../../middleware/checkSessionActive");
+const upload = require("../../middleware/fileUpload");
+
+// List and create results
 router
   .route("/")
   .get(getAllResultsUplodedByLecturer)
-  .post(uploadResultForStudent);
+  .post(checkSessionActive, uploadResultForStudent);
 
+// Read-only: no session check needed
 router.route("/course-results").get(getAllResultsForMyCourses);
 
+// Modify/delete results
 router
   .route("/:id")
   .get(getResultWithStudentInfo)
-  .patch(canModifyResult, editStudentResult)
-  .delete(canModifyResult, deleteResult);
+  .patch(checkResultSessionActive, canModifyResult, editStudentResult)
+  .delete(checkResultSessionActive, canModifyResult, deleteResult);
+
+router.get("/template/:format", getResultsUploadTemplate);
+
+router.post(
+  "/bulk",
+  upload.single("file"),
+  checkSessionActive,
+  bulkUploadResults
+);
 
 module.exports = router;

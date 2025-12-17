@@ -5,9 +5,9 @@ const {
   loggedInUser,
   verifyIdentity,
   changePassword,
-} = require("../controllers/authController");
+} = require("../../controllers/authController");
 
-const authenticationMiddleware = require("../middleware/authMiddleware");
+const authenticationMiddleware = require("../../middleware/authMiddleware");
 
 router.route("/myInfo").get(authenticationMiddleware, loggedInUser);
 

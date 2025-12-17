@@ -7,9 +7,13 @@ const {
   getCurrentAcademicSession,
   updateAcademicSession,
   deleteAcademicSession,
+  reopenAcademicSession,
+  closeAcademicSession,
 } = require("../../controllers/admin/academicSession");
 
 router.route("/").post(createAcademicSession).get(getAllAcademicSessions);
+router.route("/:id/close").patch(closeAcademicSession);
+router.route("/:id/reopen").patch(reopenAcademicSession);
 
 router.get("/current", getCurrentAcademicSession);
 

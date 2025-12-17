@@ -2,6 +2,7 @@ const Course = require("../models/Course");
 const User = require("../models/User");
 const { NotFoundError, BadRequestError } = require("../errors");
 const { isValidCourseCode, isValidSession } = require("../utils/validators");
+const Result = require("../models/Result");
 
 class CourseService {
   async createCourse(courseData) {
@@ -72,6 +73,85 @@ class CourseService {
     if (!course)
       throw new NotFoundError(`No course found with ID: ${courseId}`);
     return course;
+  }
+
+  async getCourseDetails(courseId, lecturerId) {
+    // Verify course belongs to lecturer
+    const course = await Course.findById(courseId)
+      .populate("department", "name code faculty")
+      .populate("lecturer", "name email staffId");
+
+    if (!course) {
+      throw new NotFoundError("Course not found");
+    }
+
+    if (course.lecturer._id.toString() !== lecturerId.toString()) {
+      throw new ForbiddenError("You don't have permission to view this course");
+    }
+
+    // Get registered students
+    const students = await User.find({
+      _id: { $in: course.students },
+      role: "student",
+    })
+      .select("name matricNo email level department")
+      .populate("department", "name code")
+      .sort({ name: 1 });
+
+    // Get all results for this course
+    const results = await Result.find({ course: courseId })
+      .populate("student", "name matricNo level")
+      .sort({ createdAt: -1 });
+
+    // Calculate statistics
+    const stats = {
+      totalStudents: course.students.length,
+      totalResults: results.length,
+      pendingResults: course.students.length - results.length,
+      averageScore:
+        results.length > 0
+          ? (
+              results.reduce((sum, r) => sum + r.total, 0) / results.length
+            ).toFixed(2)
+          : 0,
+      passRate:
+        results.length > 0
+          ? (
+              (results.filter((r) => r.grade !== "F").length / results.length) *
+              100
+            ).toFixed(2)
+          : 0,
+      gradeDistribution: results.reduce((acc, r) => {
+        acc[r.grade] = (acc[r.grade] || 0) + 1;
+        return acc;
+      }, {}),
+    };
+
+    // Get students without results
+    const studentsWithResults = new Set(
+      results.map((r) => r.student._id.toString())
+    );
+    const studentsWithoutResults = students.filter(
+      (s) => !studentsWithResults.has(s._id.toString())
+    );
+
+    return {
+      course: {
+        _id: course._id,
+        title: course.title,
+        code: course.code,
+        creditUnit: course.creditUnit,
+        level: course.level,
+        semester: course.semester,
+        session: course.session,
+        department: course.department,
+        isActive: course.isActive,
+      },
+      stats,
+      students,
+      results,
+      studentsWithoutResults,
+    };
   }
 
   async updateCourse(courseId, updates) {

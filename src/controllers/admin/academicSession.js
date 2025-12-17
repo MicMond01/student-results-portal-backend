@@ -39,6 +39,24 @@ const updateAcademicSession = async (req, res) => {
   });
 };
 
+const closeAcademicSession = async (req, res) => {
+  const session = await SessionService.closeSession(req.params.id);
+  res.status(StatusCodes.OK).json({
+    success: true,
+    message: "Academic session closed successfully",
+    session,
+  });
+};
+
+const reopenAcademicSession = async (req, res) => {
+  const session = await SessionService.reopenSession(req.params.id);
+  res.status(StatusCodes.OK).json({
+    success: true,
+    message: "Academic session reopened successfully",
+    session,
+  });
+};
+
 const deleteAcademicSession = async (req, res) => {
   await SessionService.deleteAcademicSession(req.params.id);
   res.status(StatusCodes.OK).json({
@@ -51,6 +69,8 @@ module.exports = {
   createAcademicSession,
   getAllAcademicSessions,
   getCurrentAcademicSession,
+  closeAcademicSession,
+  reopenAcademicSession,
   updateAcademicSession,
   deleteAcademicSession,
 };

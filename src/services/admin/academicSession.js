@@ -35,6 +35,40 @@ class SessionService {
     return session;
   }
 
+  async closeSession(sessionId) {
+    const session = await AcademicSession.findById(sessionId);
+
+    if (!session) {
+      throw new NotFoundError("Academic session not found");
+    }
+
+    if (!session.isActive) {
+      throw new BadRequestError("Session is already closed");
+    }
+
+    session.isActive = false;
+    await session.save();
+
+    return session;
+  }
+
+  async reopenSession(sessionId) {
+    const session = await AcademicSession.findById(sessionId);
+
+    if (!session) {
+      throw new NotFoundError("Academic session not found");
+    }
+
+    if (session.isActive) {
+      throw new BadRequestError("Session is already active");
+    }
+
+    session.isActive = true;
+    await session.save();
+
+    return session;
+  }
+
   async deleteAcademicSession(id) {
     const session = await AcademicSession.findById(id);
     if (!session) throw new NotFoundError("Academic session not found");

@@ -14,39 +14,49 @@ const {
   upload,
   bulkUploadQuestions,
   downloadTemplate,
-} = require("../../controllers/lecturerExamController");
+} = require("../../controllers/lecturer/lecturerExamController");
 
-// Get lecturer's courses (for creating exams)
-// router.get("/courses", getMyCourses);
+const {
+  checkSessionActive,
+  checkExamSessionActive,
+  checkQuestionSessionActive,
+} = require("../../middleware/checkSessionActive");
 
-// Main exam routes (lecturer-specific)
-router
-  .route("/")
-  .get(getMyExams) // Get only MY exams
-  .post(createExam); // Create exam for MY course
+// Create new exam
+router.route("/").get(getMyExams).post(checkSessionActive, createExam);
 
+// Read/Update/Delete exam
 router
   .route("/:id")
-  .get(getExam) // Get exam (if the lecturer own the course)
-  .patch(updateExam) // Update exam (if the lecturer own the course)
-  .delete(deleteExam); // Delete exam (if the lecturer own the course)
+  .get(getExam)
+  .patch(checkExamSessionActive, updateExam)
+  .delete(checkExamSessionActive, deleteExam);
 
-// Question management (lecturer-specific)
-router.post("/:id/questions", addQuestion);
-router.patch("/:examId/questions/:questionId", updateQuestion);
-router.delete("/:examId/questions/:questionId", deleteQuestion);
+// ✅ FIXED: Use checkQuestionSessionActive (exam-aware)
+router.post("/:id/questions", checkQuestionSessionActive, addQuestion);
 
-// Get exams by course (only lecturer's courses)
-router.get("/courses/:courseId", getExamsByCourse);
+router.patch(
+  "/:examId/questions/:questionId",
+  checkQuestionSessionActive,
+  updateQuestion
+);
 
-// Bulk upload questions
+router.delete(
+  "/:examId/questions/:questionId",
+  checkQuestionSessionActive,
+  deleteQuestion
+);
+
+// Bulk upload
 router.post(
   "/:examId/questions/bulk",
+  checkQuestionSessionActive,
   upload.single("file"),
   bulkUploadQuestions
 );
 
-// Download templates
+// Other endpoints (these don't modify, so no session check needed)
+router.get("/courses/:courseId", getExamsByCourse);
 router.get("/templates/:format", downloadTemplate);
 
 module.exports = router;

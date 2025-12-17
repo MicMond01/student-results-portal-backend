@@ -6,7 +6,7 @@ const {
   updateProfileInfo,
   updateProfilePhoto,
   changePassword,
-} = require("../../controllers/lecturer");
+} = require("../../controllers/lecturer/lecturer");
 
 router.route("/").get(viewOwnProfile).patch(updateProfileInfo);
 
