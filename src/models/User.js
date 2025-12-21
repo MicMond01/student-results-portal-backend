@@ -220,7 +220,7 @@ const UserSchema = new mongoose.Schema(
 );
 
 // Hash password before saving
-UserSchema.pre("save", async function (next) {
+UserSchema.pre("save", async function () {
   try {
     // Auto-detect role on creation
     if (this.isNew && !this.role) {
@@ -234,7 +234,7 @@ UserSchema.pre("save", async function (next) {
         const error = new Error(
           "Identifier must be a valid matric number or email"
         );
-        return next(error);
+        return error;
       }
     }
 
@@ -244,9 +244,9 @@ UserSchema.pre("save", async function (next) {
       this.password = await bcrypt.hash(this.password, salt);
     }
 
-    next();
+    return;
   } catch (error) {
-    next(error);
+    throw error;
   }
 });
 
