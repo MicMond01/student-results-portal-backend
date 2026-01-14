@@ -67,7 +67,6 @@ app.use(express.json());
 //   legacyHeaders: false,
 // });
 
-const connectDB = require("./config/db");
 
 // routes
 app.use("/api/v1/test", (req, res) => {

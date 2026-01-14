@@ -55,11 +55,20 @@ class CourseService {
   }
 
   async getCoursesByDepartment(deptId) {
+    if (!mongoose.Types.ObjectId.isValid(deptId)) {
+      throw new BadRequestError("Invalid department ID format");
+    }
+
+    const departmentExists = await Department.exists({ _id: deptId });
+
+    if (!departmentExists) {
+      throw new NotFoundError("Department not found");
+    }
+
     const courses = await Course.find({ department: deptId })
       .populate("lecturer", "name email")
       .populate("department", "name code faculty");
 
-    if (!courses.length) throw new NotFoundError(`No courses found`);
     return courses;
   }
 

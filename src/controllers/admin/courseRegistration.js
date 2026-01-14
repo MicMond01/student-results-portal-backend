@@ -7,6 +7,8 @@ const updateRegistrationSettings = async (req, res) => {
   const userId = req.user.userId;
   const userRole = req.user.role;
 
+  console.log(settings)
+
   const course =
     await CourseRegistrationService.updateCourseRegistrationSettings(
       courseId,

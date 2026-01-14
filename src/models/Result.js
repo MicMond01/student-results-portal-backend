@@ -51,7 +51,7 @@ const ResultSchema = new mongoose.Schema(
 );
 
 // Automatically calculate total & grade before saving
-ResultSchema.pre("save", function (next) {
+ResultSchema.pre("save", async function () {
   this.total = this.ca + this.exam;
 
   if (this.total >= 70) this.grade = "A";
@@ -61,7 +61,7 @@ ResultSchema.pre("save", function (next) {
   else if (this.total >= 40) this.grade = "E";
   else this.grade = "F";
 
-  next();
+  // next();
 });
 
 ResultSchema.index({ student: 1, course: 1, session: 1 }, { unique: true });

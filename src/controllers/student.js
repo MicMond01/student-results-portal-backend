@@ -92,7 +92,7 @@ const getOwnProfile = async (req, res) => {
       // ✅ Academic Info
       matricNo: student.matricNo,
       faculty: student.faculty,
-      department: student.department,
+      department: student.departmentName,
       level: student.level,
       program: student.program,
       admissionYear: student.admissionYear,
@@ -132,7 +132,7 @@ const getMyCourses = async (req, res) => {
 
   const courses = await Course.find(filter)
     .select("title code creditUnit lecturer semester session level description")
-    .populate("lecturer", "name email")
+    .populate("lecturer", "name email identifier")
     .sort({ session: -1, level: 1, semester: 1, code: 1 });
 
   // ✅ Group courses by session and semester

@@ -6,6 +6,7 @@ const {
   ForbiddenError,
 } = require("../errors/index.js");
 const Course = require("../models/Course.js");
+const Session = require("../models/AcademicSession.js");
 
 class CourseRegistrationService {
   static async _checkCoursePermission(courseId, userId, userRole) {
@@ -36,49 +37,60 @@ class CourseRegistrationService {
   }
 
   //=============== STUDENT METHODS =============
-  // Get available courses for student registration
+  // Get available courses for student registration (NOT YET REGISTERED)
   static async getAvailableCoursesForStudent(studentId) {
-    const student = await User.findById(studentId).select("department level");
+    const student = await User.findById(studentId).select(
+      "department level name matricNo"
+    );
 
     if (!student) {
       throw new NotFoundError("Student not found");
     }
 
-    // Get active session
-    const activeSession = await AcademicSession.findOne({ isActive: true });
+    const activeSession = await Session.findOne({ isActive: true });
 
     if (!activeSession) {
-      throw new NotFoundError("No active session found");
+      throw new NotFoundError("No active session found. Please contact admin.");
     }
 
-    // Find courses for student's department, level, and session
+    // Find ALL courses for student's department, level, and session
     const courses = await Course.find({
       department: student.department,
       level: student.level,
-      session: activeSession.name,
+      session: activeSession.session,
+      isActive: true,
     })
-      .populate("lecturer", "name email")
-      .populate("department", "name")
+      .populate("lecturer", "name email identifier")
+      .populate("department", "name code")
       .lean();
 
-    // Add registration status for each course
-    const coursesWithStatus = courses.map((course) => {
-      const isRegistered = course.students.some(
-        (s) => s.toString() === studentId.toString()
-      );
+    // Filter and map courses - ONLY SHOW UNREGISTERED COURSES
+    const availableCourses = courses
+      .filter((course) => {
+        // Check if student is NOT registered
+        const isRegistered = course.students.some(
+          (s) => s.toString() === studentId.toString()
+        );
 
-      const isOpen = this._checkIfRegistrationOpen(course);
+        // Only include courses where student is NOT registered
+        return !isRegistered;
+      })
+      .map((course) => {
+        const isOpen = this._checkIfRegistrationOpen(course);
 
-      return {
-        ...course,
-        isRegistered,
-        isRegistrationOpen: isOpen,
-        studentsCount: course.students.length,
-        canRegister: isOpen && !isRegistered,
-      };
-    });
+        // Remove sensitive student data before returning
+        const { students, ...courseWithoutStudents } = course;
 
-    return coursesWithStatus;
+        return {
+          ...courseWithoutStudents,
+          isRegistered: false, // Will always be false in available courses
+          isRegistrationOpen: isOpen,
+          canRegister: isOpen, // Can register if open (since not registered)
+          unit: course.creditUnit,
+        };
+      });
+
+    return availableCourses;
   }
 
   // Register student for a course
@@ -134,7 +146,7 @@ class CourseRegistrationService {
       course: {
         code: course.code,
         title: course.title,
-        unit: course.unit,
+        unit: course.creditUnit,
         semester: course.semester,
       },
     };
@@ -175,32 +187,7 @@ class CourseRegistrationService {
     };
   }
 
-  // Helper to check if registration is open
-  static _checkIfRegistrationOpen(course) {
-    if (!course.registrationOpen) return false;
-
-    if (
-      course.registrationDeadline &&
-      new Date() > new Date(course.registrationDeadline)
-    ) {
-      return false;
-    }
-
-    if (
-      course.registrationOpenDate &&
-      new Date() < new Date(course.registrationOpenDate)
-    ) {
-      return false;
-    }
-
-    if (course.maxStudents && course.students.length >= course.maxStudents) {
-      return false;
-    }
-
-    return true;
-  }
-
-  // Get student's registered courses
+  // Get student's registered courses (ALREADY REGISTERED)
   static async getStudentRegisteredCourses(studentId) {
     const student = await User.findById(studentId).select("department level");
 
@@ -208,25 +195,35 @@ class CourseRegistrationService {
       throw new NotFoundError("Student not found");
     }
 
-    const activeSession = await AcademicSession.findOne({ isActive: true });
+    const activeSession = await Session.findOne({ isActive: true });
 
     if (!activeSession) {
       throw new NotFoundError("No active session found");
     }
 
+    // Only get courses where student is IN the students array
     const courses = await Course.find({
-      session: activeSession.name,
-      students: studentId,
+      session: activeSession.session,
+      students: studentId, // This filters to only registered courses
     })
-      .populate("lecturer", "name email")
-      .populate("department", "name")
+      .populate("lecturer", "name email identifier")
+      .populate("department", "name code")
       .lean();
 
-    return courses.map((course) => ({
-      ...course,
-      studentsCount: course.students.length,
-      isRegistrationOpen: this._checkIfRegistrationOpen(course),
-    }));
+    return courses.map((course) => {
+      const isOpen = this._checkIfRegistrationOpen(course);
+
+      // Remove sensitive student data before returning
+      const { students, ...courseWithoutStudents } = course;
+
+      return {
+        ...courseWithoutStudents,
+        isRegistered: true,
+        isRegistrationOpen: isOpen,
+        canRegister: false,
+        unit: course.creditUnit,
+      };
+    });
   }
 
   // ADMIN/LECTURER: Update course registration settings
@@ -305,7 +302,7 @@ class CourseRegistrationService {
       throw new ForbiddenError("Only admins can perform bulk operations");
     }
 
-    const activeSession = await AcademicSession.findOne({ isActive: true });
+    const activeSession = await Session.findOne({ isActive: true });
 
     if (!activeSession) {
       throw new NotFoundError("No active session found");
@@ -314,7 +311,7 @@ class CourseRegistrationService {
     const result = await Course.updateMany(
       {
         department: departmentId,
-        session: activeSession.name,
+        session: activeSession.session,
       },
       {
         $set: { registrationDeadline: deadline },
@@ -332,14 +329,14 @@ class CourseRegistrationService {
       throw new ForbiddenError("Only admins can perform bulk operations");
     }
 
-    const activeSession = await AcademicSession.findOne({ isActive: true });
+    const activeSession = await Session.findOne({ isActive: true });
 
     if (!activeSession) {
       throw new NotFoundError("No active session found");
     }
 
     const result = await Course.updateMany(
-      { session: activeSession.name },
+      { session: activeSession.session },
       { $set: { registrationDeadline: deadline } }
     );
 
@@ -354,13 +351,15 @@ class CourseRegistrationService {
       throw new ForbiddenError("Only admins can view registration statistics");
     }
 
-    const activeSession = await AcademicSession.findOne({ isActive: true });
+    const activeSession = await Session.findOne({ isActive: true });
 
     if (!activeSession) {
       throw new NotFoundError("No active session found");
     }
 
-    const courses = await Course.find({ session: activeSession.name })
+    const courses = await Course.find({
+      session: activeSession.session,
+    })
       .populate("department", "name")
       .lean();
 
