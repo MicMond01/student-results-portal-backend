@@ -1,5 +1,5 @@
 {
-  "name": "student-results-portal-backend",
+  "name": "university-portal-backend",
   "version": "1.0.0",
   "description": "Student Results Management Portal",
   "main": "./src/app.js",

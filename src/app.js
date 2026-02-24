@@ -16,28 +16,28 @@ const {
 } = require("./middleware/authorizeRoles");
 
 //extra security packages
-// const helmet = require("helmet");
+const helmet = require("helmet");
 const cors = require("cors");
-// const xss = require("xss-clean");
-// const rateLimiter = require("express-rate-limit");
-// const mongoSanitize = require("express-mongo-sanitize");
-// const hpp = require("hpp");
+const xss = require("xss-clean");
+const rateLimiter = require("express-rate-limit");
+const mongoSanitize = require("express-mongo-sanitize");
+const hpp = require("hpp");
 
 // error handler
 const notFoundMiddleware = require("./middleware/notFound");
 const errorHandlerMiddleware = require("./middleware/errorHandler");
 
-// app.set("trust proxy", 1);
-// app.use(
-//   helmet({
-//     contentSecurityPolicy: {
-//       directives: {
-//         defaultSrc: ["'self'"],
-//         styleSrc: ["'self'", "'unsafe-inline'"],
-//       },
-//     },
-//   })
-// );
+app.set("trust proxy", 1);
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+      },
+    },
+  })
+);
 
 const corsOptions = {
   origin: process.env.CORS_ORIGIN,
@@ -46,26 +46,26 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(express.json());
-// app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-// app.use(mongoSanitize);
-// app.use(xss());
-// app.use(hpp());
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(mongoSanitize);
+app.use(xss());
+app.use(hpp());
 
-// const authLimiter = rateLimiter({
-//   windowMs: 15 * 60 * 1000,
-//   max: 5,
-//   message: "Too many login attempts, please try again after 15 minutes",
-//   standardHeaders: true,
-//   legacyHeaders: false,
-// });
+const authLimiter = rateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: "Too many login attempts, please try again after 15 minutes",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-// const generalLimiter = rateLimiter({
-//   windowMs: 15 * 60 * 1000,
-//   max: 100,
-//   message: "Too many requests, please try again later",
-//   standardHeaders: true,
-//   legacyHeaders: false,
-// });
+const generalLimiter = rateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: "Too many requests, please try again later",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 
 // routes
