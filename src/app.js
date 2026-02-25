@@ -36,7 +36,7 @@ app.use(
         styleSrc: ["'self'", "'unsafe-inline'"],
       },
     },
-  })
+  }),
 );
 
 const corsOptions = {
@@ -47,7 +47,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-app.use(mongoSanitize);
+app.use(mongoSanitize());
 app.use(xss());
 app.use(hpp());
 
@@ -67,24 +67,25 @@ const generalLimiter = rateLimiter({
   legacyHeaders: false,
 });
 
-
 // routes
 app.use("/api/v1/test", (req, res) => {
   res.json({ data: "This is a test route and its working bro" });
 });
-app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/auth", authLimiter, authRouter);
+app.use(generalLimiter);
+
 app.use("/api/v1/admin", authenticationMiddleware, adminOnly, adminRouter);
 app.use(
   "/api/v1/lecturer",
   authenticationMiddleware,
   lecturerOrAdmin,
-  lecturerRouter
+  lecturerRouter,
 );
 app.use(
   "/api/v1/student",
   authenticationMiddleware,
   studentOnly,
-  studentRouter
+  studentRouter,
 );
 
 app.use(notFoundMiddleware);
