@@ -4,7 +4,7 @@
   "description": "Student Results Management Portal",
   "main": "./src/app.js",
   "scripts": {
-    "start": "node app.js",
+    "start": "node src/app.js",
     "dev": "nodemon app.js"
   },
   "author": "Michael",
