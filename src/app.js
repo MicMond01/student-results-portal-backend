@@ -51,13 +51,6 @@ app.use(mongoSanitize());
 app.use(xss());
 app.use(hpp());
 
-const authLimiter = rateLimiter({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: "Too many login attempts, please try again after 15 minutes",
-  standardHeaders: true,
-  legacyHeaders: false,
-});
 
 const generalLimiter = rateLimiter({
   windowMs: 15 * 60 * 1000,
@@ -71,7 +64,7 @@ const generalLimiter = rateLimiter({
 app.use("/api/v1/test", (req, res) => {
   res.json({ data: "This is a test route and its working bro" });
 });
-app.use("/api/v1/auth", authLimiter, authRouter);
+app.use("/api/v1/auth", authRouter);
 app.use(generalLimiter);
 
 app.use("/api/v1/admin", authenticationMiddleware, adminOnly, adminRouter);
